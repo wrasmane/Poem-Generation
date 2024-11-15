@@ -3,9 +3,11 @@ Transformer Model
 TODO: add info
 """
 
-class Transformer:
+from Model import Model
+
+class Transformer(Model):
     def fit(self):
         pass
 
-    def generate(self, input):
+    def generate(self, phrase):
         pass

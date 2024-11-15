@@ -3,9 +3,11 @@ State Space Model
 TODO: add info
 """
 
-class StateSpace:
+from Model import Model
+
+class StateSpace(Model):
     def fit(self):
         pass
 
-    def generate(self, input):
+    def generate(self, phrase):
         pass

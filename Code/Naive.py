@@ -3,9 +3,11 @@ Naive Model
 TODO: add info
 """
 
-class Naive:
+from Model import Model
+
+class Naive(Model):
     def fit(self):
         pass
 
-    def generate(self, input):
+    def generate(self, phrase):
         pass
