@@ -3,7 +3,6 @@ Main Class
 TODO: add info
 """
 import pandas as pd
-import numpy as np
 
 from Naive import Naive
 from StateSpace import StateSpace
@@ -15,8 +14,9 @@ def load_data():
     data = pd.read_csv("../Data/PoetryFoundationData.csv")
     poems = data["Poem"].tolist()
 
-    # clean poems from leading and trailing whitespace
+    # clean poems from leading and trailing whitespace and changes all to lowercase
     poems = list(map(str.strip, poems))
+    poems = list(map(str.lower, poems))
 
     return poems
 
@@ -51,7 +51,7 @@ def main():
     poems = load_data()
 
     model, phrase = user_interaction()
-    print(model, phrase)
+
 
 if __name__ == '__main__':
     main()
