@@ -8,6 +8,7 @@ from Model import Model
 import torch
 import torch.nn as nn
 from torch.nn import functional
+from typing import List
 
 # Hyperparameters
 num_token_embeddings = 64
@@ -16,13 +17,13 @@ context_length = 16
 num_heads = 0
 
 class Transformer(Model):
-    def fit(self):
+    def fit(self, data: List[str]):
         pass
 
-    def generate(self, phrase):
+    def generate(self, phrase: str) -> str:
         pass
 
-# Feed Forward network
+# Feed Forward Network
 class FeedForward(nn.Module):
     def __init__(self):
         super().__init__()

@@ -22,35 +22,59 @@ def load_data():
 
 def user_interaction():
     model = None
-    phrase = None
 
     print("\nWelcome to Poem Generator!\n\n")
 
     print("Please choose an generation model:")
     print("Naive:\t\t'1'")
     print("Transformer:\t'2'")
-    print("State Space:\t'2'\n")
+    print("State Space:\t'3'\n")
 
     model_choice = input("Choice:\t")
     print("\n")
 
     if model_choice == "1":
-        model = Naive
+        model = Naive()
     elif model_choice == "2":
-        model = Transformer
+        model = Transformer()
     elif model_choice == "3":
-        model = StateSpace
+        model = StateSpace()
 
     print("Please enter a starting phrase to generate a poem from:\n")
     phrase = input("Phrase:\t")
 
     return model, phrase
 
+def continue_user_interaction():
+    print("\nWould you like to generate another poem with the same model?")
+    generate_again = input("(y/n):\t")
+
+    if generate_again.lower() == "y":
+        print("Please enter a starting phrase to generate a poem from:\n")
+        phrase = input("Phrase:\t")
+        return phrase
+    else:
+        quit()
 
 def main():
     poems = load_data()
 
     model, phrase = user_interaction()
+    phrase = phrase.lower()
+
+    model.fit(poems)
+
+    poem = model.generate(phrase)
+
+    print(poem)
+
+    while True:
+        phrase = continue_user_interaction()
+        phrase = phrase.lower()
+
+        poem = model.generate(phrase)
+
+        print(poem)
 
 
 if __name__ == '__main__':
