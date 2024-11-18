@@ -18,10 +18,11 @@ num_heads = 0
 
 class Transformer(Model):
     def fit(self, data: List[str]):
+        self.poems = data
         pass
 
     def generate(self, phrase: str) -> str:
-        pass
+        return self.poems[0]
 
 # Feed Forward Network
 class FeedForward(nn.Module):

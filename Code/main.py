@@ -15,8 +15,11 @@ def load_data():
     poems = data["Poem"].tolist()
 
     # clean poems from leading and trailing whitespace and changes all to lowercase
-    poems = list(map(str.strip, poems))
-    poems = list(map(str.lower, poems))
+    for i in range(len(poems)):
+        poems[i] = poems[i].replace("\r", "")
+        # poems[i] = poems[i].replace("\n\n\n", "\n")
+        poems[i] = poems[i].strip()
+        poems[i] = poems[i].lower()
 
     return poems
 
