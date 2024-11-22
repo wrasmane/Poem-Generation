@@ -11,7 +11,7 @@ import difflib
 class Naive(Model):
     def fit(self, data: List[str]):
         self.poems = data
-        self.min_similarity = 0.5 # Minimum 50% similarity
+        self.min_similarity = 0.05 # Minimum 50% similarity
         pass
 
     def generate(self, phrase: str) -> str:
