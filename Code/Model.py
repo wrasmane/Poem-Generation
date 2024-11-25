@@ -2,6 +2,7 @@
 Model Interface
 TODO: add info
 """
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 from typing import List
 
