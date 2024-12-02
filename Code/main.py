@@ -2,6 +2,8 @@
 Main Class
 TODO: add info
 """
+import time
+
 import pandas as pd
 
 from Naive import Naive
@@ -77,13 +79,21 @@ def main():
     model, phrase = user_interaction()
     phrase = phrase.lower()
 
+    start = time.time()
     model.fit(poems)
+    end = time.time()
 
+    print("Training Time: ", end - start, "seconds")
+
+    start = time.time()
     poem = model.generate(phrase)
+    end = time.time()
 
-    save_poem(phrase, model, poem)
+    print("Generation Time: ", end - start, "seconds")
 
     print(poem)
+
+    save_poem(phrase, model, poem)
 
     while True:
         phrase = continue_user_interaction()

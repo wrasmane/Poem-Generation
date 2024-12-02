@@ -34,8 +34,8 @@ num_heads = 4
 num_blocks = 8
 device = torch.device("cpu")
 batch_size = 4
-eval_iterations = 50
-max_iterations = 5000
+eval_iterations = 1
+max_iterations = 5
 lr = 0.0001
 max_new_tokens = 100
 
@@ -56,7 +56,7 @@ class Transformer(Model):
         self.poems = "\n\n".join(data)
         self.encoding = tiktoken.get_encoding("cl100k_base")
         tokenized_text = self.encoding.encode(self.poems)
-        self.max_token_value = max(tokenized_text) + 1  # the maximum value of the tokenized numbers
+        self.max_token_value = max(tokenized_text) + 1                                  # the maximum value of the tokenized numbers
         tokenized_text = torch.tensor(tokenized_text, dtype=torch.long, device=device)  # put tokenized text into tensor
 
         split = int(len(tokenized_text) * 0.8)
@@ -81,7 +81,7 @@ class Transformer(Model):
             loss.backward()
             optim.step()
 
-            torch.save(self.model.state_dict(), str(max_iterations) + "-model.pt")
+        torch.save(self.model.state_dict(), str(max_iterations) + "-model.pt")
 
 
     def _getbatch(self, split):
