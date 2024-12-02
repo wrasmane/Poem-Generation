@@ -1,6 +1,20 @@
 """
 Transformer Model
-TODO: add info
+
+Code was adopted and modeled after the below repository
+https://github.com/Suruj0001/Transfomers/tree/main
+
+This repository worked through the paper "All you need is attention"
+and provided a step-by-step walkthrough of implementing a Transformer
+model from scratch. In real applications, libraries such as PyPi or
+Hugging face. Along with this, there are pretrained transformers from
+Open AI that would all preform better than this one
+
+This transformer model uses many advanced neural network topics that
+are above the level for this class, so the main components were
+discussed in class, such as the attention module and the positional
+encoding/decoding.
+
 """
 import math
 
@@ -20,13 +34,25 @@ num_heads = 4
 num_blocks = 8
 device = torch.device("cpu")
 batch_size = 4
-eval_itterations = 50
-max_itterations = 500
+eval_iterations = 50
+max_iterations = 5000
 lr = 0.0001
 max_new_tokens = 100
 
+"""
+Main transformer class
+
+"""
 class Transformer(Model):
     def fit(self, data: List[str]):
+        """
+        joins all poems into one big string
+        tokenizes them usng tiktoken
+        initializes the LLM
+        trains using the adam optimizer
+
+        :param data: poem data in a list of strings
+        """
         self.poems = "\n\n".join(data)
         self.encoding = tiktoken.get_encoding("cl100k_base")
         tokenized_text = self.encoding.encode(self.poems)
@@ -42,8 +68,8 @@ class Transformer(Model):
 
         optim = torch.optim.Adam(self.model.parameters(), lr)
         losses = list()
-        for step in range(max_itterations):
-            if step % eval_itterations == 0 or step == max_itterations:
+        for step in range(max_iterations):
+            if step % eval_iterations == 0 or step == max_iterations:
                 loss = self._loss()
                 losses.append(loss)
                 print("Step:", step, "Training Loss:", round(loss["train"].item(), 3), "Validation Loss:",
@@ -55,8 +81,15 @@ class Transformer(Model):
             loss.backward()
             optim.step()
 
+            torch.save(self.model.state_dict(), str(max_iterations) + "-model.pt")
+
 
     def _getbatch(self, split):
+        """
+        helper method for getting a batch of input data
+        :param split: either the training for validation split for labeling the data
+        :return: data for input and data + 1 token as output
+        """
         data = self.train if split == "train" else self.val
         idx = torch.randint(0, len(data) - context_length, (batch_size,))
         x = torch.stack([data[i:i + context_length] for i in idx]).to(device)
@@ -65,11 +98,16 @@ class Transformer(Model):
 
     @torch.no_grad()
     def _loss(self):
+        """
+        calculates the loss of the model while training
+        used to minimize in the adam optimizer
+        :return: loss per eval iteration
+        """
         out = {}
         self.model.eval()
         for split in ["train", "val"]:
-            losses = torch.zeros(eval_itterations)
-            for k in range(eval_itterations):
+            losses = torch.zeros(eval_iterations)
+            for k in range(eval_iterations):
                 x_b, y_b = self._getbatch(split)
                 logs, loss = self.model(x_b, y_b)
                 losses[k] = loss.item()
@@ -78,6 +116,12 @@ class Transformer(Model):
         return out
 
     def generate(self, phrase: str) -> str:
+        """
+        generates the output of the model when given an input phrase
+        uses a max_new_token int for the maximum number of tokesn generated
+        :param phrase: input phrase from the user
+        :return: the generated poem
+        """
         self.model.eval()
         start_tokens = self.encoding.encode(phrase)
         x = (torch.tensor(start_tokens, device=device)[None, ...])
@@ -85,7 +129,11 @@ class Transformer(Model):
         return self.encoding.decode(y[0].tolist())
 
 
-# Feed Forward Network
+"""
+Feed Forward Network
+
+adds layers for nn understanding of the data
+"""
 class FeedForward(nn.Module):
     def __init__(self):
         super().__init__()
@@ -102,7 +150,11 @@ class FeedForward(nn.Module):
         return self.feed_forward_network(x)
 
 
-# Attention
+"""
+Attention Module
+
+gets the context a word has with other words in a phrase
+"""
 class Attention(nn.Module):
     def __init__(self, head_size):
         super().__init__()
@@ -134,7 +186,11 @@ class Attention(nn.Module):
 
         return weights @ v
 
-# Multi-headed Attention
+"""
+Multi-Headed Attention Module
+
+multiple attention modules used to get better insight on the phrases and context
+"""
 class MultiHeadAttention(nn.Module):
     def __init__(self, head_size):
         super().__init__()
@@ -154,6 +210,11 @@ class MultiHeadAttention(nn.Module):
         out = self.dropout(out)
         return out
 
+"""
+Main transformer block of the transformer
+
+combines the attention modules and feedforward network
+"""
 class TransformerBlock(nn.Module):
     def __init__(self, num_heads):
         super().__init__()
@@ -173,6 +234,11 @@ class TransformerBlock(nn.Module):
         x = x + self.ff(self.norm2(x))
         return x
 
+"""
+Main LLM
+
+combines the transformer blocks with positional encoding/decoding of token embeddings
+"""
 class TransformerLLM(nn.Module):
     def __init__(self, max_token_value):
         super().__init__()

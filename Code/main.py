@@ -59,6 +59,18 @@ def continue_user_interaction():
     else:
         quit()
 
+def save_poem(phrase, model, poem):
+    name = ""
+    if type(model) == type(Naive()):
+        name = "Naive"
+    elif type(model) == type(Transformer()):
+        name = "Transformer"
+    else:
+        name = "StateSpace"
+
+    with open(phrase.replace(" ", "-") + "-" + name + ".txt", "w") as file:
+        file.write(poem)
+
 def main():
     poems = load_data()
 
@@ -68,6 +80,8 @@ def main():
     model.fit(poems)
 
     poem = model.generate(phrase)
+
+    save_poem(phrase, model, poem)
 
     print(poem)
 
