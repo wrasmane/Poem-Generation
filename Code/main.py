@@ -70,8 +70,13 @@ def save_poem(phrase, model, poem):
     else:
         name = "StateSpace"
 
-    with open(phrase.replace(" ", "-") + "-" + name + ".txt", "w") as file:
-        file.write(poem)
+    try:
+        with open(phrase.replace(" ", "-") + "-" + name + ".txt", "w") as file:
+            file.write(poem)
+    except UnicodeEncodeError:
+        file.write("Error saving poem.\nPoem contained invalid characters")
+        print("Error saving poem.")
+
 
 def main():
     poems = load_data()

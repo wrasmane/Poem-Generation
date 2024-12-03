@@ -34,8 +34,8 @@ num_heads = 4
 num_blocks = 8
 device = torch.device("cpu")
 batch_size = 4
-eval_iterations = 1
-max_iterations = 5
+eval_iterations = 100
+max_iterations = 5000
 lr = 0.0001
 max_new_tokens = 100
 
