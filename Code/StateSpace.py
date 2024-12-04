@@ -12,7 +12,9 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 import tiktoken
 
-device = torch.device('cpu')
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+print(f"Using inference device for SSM:  {device}")
 
 STATE_DIM = 32
 EMBED_DIM = 16
@@ -31,6 +33,7 @@ class StateSpace(Model):
         dataloader = DataLoader(dataset, batch_size=16, shuffle=True)
 
         self.model = TextStateSpaceModel(self.vocab_size, EMBED_DIM, STATE_DIM)
+        self.model.to(device)
 
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
@@ -93,6 +96,12 @@ class TextStateSpaceModel(nn.Module):
         self.C = nn.Parameter(torch.randn(embed_dim, state_dim))
         self.bias_state = nn.Parameter(torch.zeros(state_dim))
         self.bias_obs = nn.Parameter(torch.zeros(embed_dim))
+
+        self.A.to(device=device)
+        self.B.to(device=device)
+        self.C.to(device=device)
+        self.bias_state.to(device=device)
+        self.bias_obs.to(device=device)
     
     def forward(self, x_t, u_t):
         # Reshape x_t to match (state_dim, batch_size) for compatibility
