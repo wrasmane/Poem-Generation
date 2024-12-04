@@ -14,13 +14,13 @@ import tiktoken
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-print(f"Using inference device for SSM:  {device}")
 
 STATE_DIM = 32
 EMBED_DIM = 16
 
 class StateSpace(Model):
     def fit(self, data: List[str]):
+        print(f"Using inference device for SSM:  {device}")
         # poem data tokenization
         self.poems = "\n\n".join(data)
         self.tokenizer = tiktoken.get_encoding("cl100k_base")
