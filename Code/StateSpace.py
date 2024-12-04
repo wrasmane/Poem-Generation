@@ -84,10 +84,6 @@ class StateSpace(Model):
 
         return generated_text
 
-    def convert_to_tensor(self, string: str):
-        token = self.tokenizer.encode(string)
-        return torch.tensor(token, dtype=torch.long)
-
 
 class TextStateSpaceModel(nn.Module):
     def __init__(self, vocab_size, embed_dim, state_dim):
