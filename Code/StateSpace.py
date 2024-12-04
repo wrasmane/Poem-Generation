@@ -32,8 +32,7 @@ class StateSpace(Model):
         dataset = StringDataset(self.poems, seq_len, self.tokenizer)
         dataloader = DataLoader(dataset, batch_size=16, shuffle=True)
 
-        self.model = TextStateSpaceModel(self.vocab_size, EMBED_DIM, STATE_DIM)
-        self.model.to(device)
+        self.model = TextStateSpaceModel(self.vocab_size, EMBED_DIM, STATE_DIM).to(device=device)
 
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
@@ -43,8 +42,11 @@ class StateSpace(Model):
             print(f"epoch: {epoch}")
             total_loss = 0
             for batch_idx, (inputs, targets) in enumerate(dataloader):
+                inputs = inputs.to(device)
+                targets = targets.to(device)
+
                 batch_size = inputs.size(0)
-                x_t = torch.zeros(batch_size, STATE_DIM)  # Initial state
+                x_t = torch.zeros(batch_size, STATE_DIM, device=device)  # Initial state
                 loss = 0
                 
                 for t in range(seq_len):
@@ -66,14 +68,14 @@ class StateSpace(Model):
 
     def generate(self, phrase: str) -> str:
         seed_tokens = self.tokenizer.encode(phrase)
-        x_t = torch.zeros(STATE_DIM)
+        x_t = torch.zeros(STATE_DIM, device=device)
         generated_text = phrase
 
-        LENGTH = 50 # Generate 50 tokens
+        LENGTH = 200 # Generate 200 tokens
 
         for _ in range(LENGTH):
             for token in seed_tokens:
-                u_t = self.model.embedding(torch.tensor(token))
+                u_t = self.model.embedding(torch.tensor(token, device=device))
                 x_t, y_t = self.model(x_t, u_t)
             logits = y_t @ self.model.embedding.weight.T
             next_token = torch.argmax(F.softmax(logits, dim=0)).item()
@@ -96,12 +98,6 @@ class TextStateSpaceModel(nn.Module):
         self.C = nn.Parameter(torch.randn(embed_dim, state_dim))
         self.bias_state = nn.Parameter(torch.zeros(state_dim))
         self.bias_obs = nn.Parameter(torch.zeros(embed_dim))
-
-        self.A.to(device=device)
-        self.B.to(device=device)
-        self.C.to(device=device)
-        self.bias_state.to(device=device)
-        self.bias_obs.to(device=device)
     
     def forward(self, x_t, u_t):
         # Reshape x_t to match (state_dim, batch_size) for compatibility
