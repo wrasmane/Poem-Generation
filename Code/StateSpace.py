@@ -58,7 +58,7 @@ class StateSpace(Model):
                 
                 total_loss += loss.item()
 
-                if batch_idx % 10 == 0:  # Log every 10 batches
+                if batch_idx % 1000 == 0:  # Log every 10 batches
                     print(f"Epoch {epoch + 1}, Batch {batch_idx + 1}/{len(dataloader)}, Loss: {loss.item():.4f}")
 
     def generate(self, phrase: str) -> str:
@@ -107,11 +107,14 @@ class TextStateSpaceModel(nn.Module):
 
         return x_next, y_t
 
+PERCENT = 0.25 # Use only 25% of our data
 
 class StringDataset(Dataset):
     def __init__(self, text, seq_len, tokenizer):
         self.seq_len = seq_len
         self.text = tokenizer.encode(text)  # Tokenize text into token IDs
+        reduced_length = int(len(self.text) * PERCENT)
+        self.text = self.text[:reduced_length]
         self.inputs, self.targets = self.create_sequences()
     
     def create_sequences(self):
