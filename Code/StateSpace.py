@@ -12,6 +12,8 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 import tiktoken
 
+device = torch.device('cpu')
+
 STATE_DIM = 32
 EMBED_DIM = 16
 
@@ -19,13 +21,13 @@ class StateSpace(Model):
     def fit(self, data: List[str]):
         # poem data tokenization
         self.poems = "\n\n".join(data)
-        self.encoding = tiktoken.get_encoding("cl100k_base")
-        tokenized_text = self.encoding.encode(self.poems)
-        self.text_tensor = torch.tensor(tokenized_text, dtype=torch.long, device=torch.device) 
+        self.tokenizer = tiktoken.get_encoding("cl100k_base")
+        tokenized_text = self.tokenizer.encode(self.poems)
+        self.text_tensor = torch.tensor(tokenized_text, dtype=torch.long, device=device) 
         self.vocab_size = self.tokenizer.n_vocab
 
         seq_len = 5
-        dataset = StringDataset(self.poems, seq_len)
+        dataset = StringDataset(self.poems, seq_len, self.tokenizer)
         dataloader = DataLoader(dataset, batch_size=16, shuffle=True)
 
         self.model = TextStateSpaceModel(self.vocab_size, EMBED_DIM, STATE_DIM)
@@ -33,10 +35,11 @@ class StateSpace(Model):
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
 
-        epochs = 10
+        epochs = 2
         for epoch in range(epochs):
+            print(f"epoch: {epoch}")
             total_loss = 0
-            for inputs, targets in dataloader:
+            for batch_idx, (inputs, targets) in enumerate(dataloader):
                 batch_size = inputs.size(0)
                 x_t = torch.zeros(batch_size, STATE_DIM)  # Initial state
                 loss = 0
@@ -54,7 +57,9 @@ class StateSpace(Model):
                 optimizer.step()
                 
                 total_loss += loss.item()
-            
+
+                if batch_idx % 10 == 0:  # Log every 10 batches
+                    print(f"Epoch {epoch + 1}, Batch {batch_idx + 1}/{len(dataloader)}, Loss: {loss.item():.4f}")
 
     def generate(self, phrase: str) -> str:
         seed_tokens = self.tokenizer.encode(phrase)
@@ -75,7 +80,7 @@ class StateSpace(Model):
         return generated_text
 
     def convert_to_tensor(self, string: str):
-        token = self.encoding.encode(string)
+        token = self.tokenizer.encode(string)
         return torch.tensor(token, dtype=torch.long)
 
 
@@ -90,10 +95,19 @@ class TextStateSpaceModel(nn.Module):
         self.bias_obs = nn.Parameter(torch.zeros(embed_dim))
     
     def forward(self, x_t, u_t):
-        x_next = torch.matmul(self.A, x_t) + torch.matmul(self.B, u_t) + self.bias_state
-        y_t = torch.matmul(self.C, x_next) + self.bias_obs
+        # Reshape x_t to match (state_dim, batch_size) for compatibility
+        x_t = x_t.unsqueeze(-1)  # (batch_size, state_dim) -> (batch_size, state_dim, 1)
+        u_t = u_t.unsqueeze(-1)  # (batch_size, embed_dim) -> (batch_size, embed_dim, 1)
+
+        # State transition
+        x_next = torch.matmul(self.A, x_t).squeeze(-1) + torch.matmul(self.B, u_t).squeeze(-1) + self.bias_state
+
+        # Observation
+        y_t = torch.matmul(self.C, x_next.unsqueeze(-1)).squeeze(-1) + self.bias_obs
+
         return x_next, y_t
-    
+
+
 class StringDataset(Dataset):
     def __init__(self, text, seq_len, tokenizer):
         self.seq_len = seq_len
