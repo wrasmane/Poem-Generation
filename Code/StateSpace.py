@@ -5,61 +5,109 @@ TODO: add info
 
 from typing import List
 from Model import Model
-import numpy as np
 import torch
 import torch.nn as nn
-from torch.nn import functional
-from sklearn.feature_extraction.text import TfidfVectorizer
+import torch.nn.functional as F
+from torch.utils.data import DataLoader, Dataset
+import tiktoken
 
-MATRIX_SIZE = 10
+STATE_DIM = 32
+EMBED_DIM = 16
 
 class StateSpace(Model):
     def fit(self, data: List[str]):
-        self.weight_dimensions = MATRIX_SIZE
-        self.state_dimensions = MATRIX_SIZE
-        self.weight_a = self.create_default_state()
-        self.weight_b = self.create_default_state()
-        self.weight_c = self.create_default_state()
+        # poem data tokenization
+        self.poems = "\n\n".join(data)
+        self.encoding = tiktoken.get_encoding("cl100k_base")
+        tokenized_text = self.encoding.encode(self.poems)
+        self.text_tensor = torch.tensor(tokenized_text, dtype=torch.long, device=torch.device) 
+        self.vocab_size = self.tokenizer.n_vocab
 
-        self.vectorizer = TfidfVectorizer()
-        self.train_data = self.vectorizer.fit_transform(data)
+        seq_len = 5
+        dataset = StringDataset(self.poems, seq_len)
+        dataloader = DataLoader(dataset, batch_size=16, shuffle=True)
 
-    def generate(self, phrase):
-        self.state_x = self.convert_to_vec(phrase) # Initial state is based on input phrase
-        self.input_u = self.convert_to_vec(phrase) # Input U is based on purely input
+        self.model = TextStateSpaceModel(self.vocab_size, EMBED_DIM, STATE_DIM)
 
-        self.simulate()
+        criterion = nn.CrossEntropyLoss()
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
 
-    def convert_to_vec(self, string: str):
-        return self.vectorizer.transform([string]).toarray()[0]
+        epochs = 10
+        for epoch in range(epochs):
+            total_loss = 0
+            for inputs, targets in dataloader:
+                batch_size = inputs.size(0)
+                x_t = torch.zeros(batch_size, STATE_DIM)  # Initial state
+                loss = 0
+                
+                for t in range(seq_len):
+                    u_t = self.model.embedding(inputs[:, t])
+                    x_t, y_t = self.model(x_t, u_t)
+                
+                # Predict next token
+                logits = y_t @ self.model.embedding.weight.T  # Project back to vocab space
+                loss = criterion(logits, targets)
+                
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                
+                total_loss += loss.item()
+            
 
-    def create_default_state(self):
-        return np.zeros(shape=(self.state_dimensions, self.state_dimensions))
+    def generate(self, phrase: str) -> str:
+        seed_tokens = self.tokenizer.encode(phrase)
+        x_t = torch.zeros(STATE_DIM)
+        generated_text = phrase
 
-    def map_to_state_dimension(embedding, state_dim):
-        embedding_dim = len(embedding)
-        if embedding_dim > state_dim:
-            # Reduce dimensionality
-            return embedding[:state_dim]
-        elif embedding_dim < state_dim:
-            # Pad with zeros
-            return np.pad(embedding, (0, state_dim - embedding_dim), mode='constant')
-        return embedding
+        LENGTH = 50 # Generate 50 tokens
 
-    def simulate(self):
-        n_states = self.weight_dimensions
-        n_outputs = self.weight_dimensions
+        for _ in range(LENGTH):
+            for token in seed_tokens:
+                u_t = self.model.embedding(torch.tensor(token))
+                x_t, y_t = self.model(x_t, u_t)
+            logits = y_t @ self.model.embedding.weight.T
+            next_token = torch.argmax(F.softmax(logits, dim=0)).item()
+            generated_text += self.tokenizer.decode([next_token])
+            seed_tokens = [next_token]  # Update seed for the next step
 
-        T = 10 # Number of steps to simulate
+        return generated_text
 
-        observations = []
+    def convert_to_tensor(self, string: str):
+        token = self.encoding.encode(string)
+        return torch.tensor(token, dtype=torch.long)
 
-        for t in range(T):
-            self.state_x = torch.add(
-                torch.mul(self.weight_a, self.state_x)), torch.mul(self.weight_b, self.input_u
-            )
 
-            y = torch.mul(self.weight_c, self.state_x)
-            observations.append(y)
-
-        return observations
+class TextStateSpaceModel(nn.Module):
+    def __init__(self, vocab_size, embed_dim, state_dim):
+        super(TextStateSpaceModel, self).__init__()
+        self.embedding = nn.Embedding(vocab_size, embed_dim)
+        self.A = nn.Parameter(torch.randn(state_dim, state_dim))
+        self.B = nn.Parameter(torch.randn(state_dim, embed_dim))
+        self.C = nn.Parameter(torch.randn(embed_dim, state_dim))
+        self.bias_state = nn.Parameter(torch.zeros(state_dim))
+        self.bias_obs = nn.Parameter(torch.zeros(embed_dim))
+    
+    def forward(self, x_t, u_t):
+        x_next = torch.matmul(self.A, x_t) + torch.matmul(self.B, u_t) + self.bias_state
+        y_t = torch.matmul(self.C, x_next) + self.bias_obs
+        return x_next, y_t
+    
+class StringDataset(Dataset):
+    def __init__(self, text, seq_len, tokenizer):
+        self.seq_len = seq_len
+        self.text = tokenizer.encode(text)  # Tokenize text into token IDs
+        self.inputs, self.targets = self.create_sequences()
+    
+    def create_sequences(self):
+        inputs, targets = [], []
+        for i in range(len(self.text) - self.seq_len):
+            inputs.append(self.text[i:i + self.seq_len])
+            targets.append(self.text[i + self.seq_len])
+        return torch.tensor(inputs), torch.tensor(targets)
+    
+    def __len__(self):
+        return len(self.inputs)
+    
+    def __getitem__(self, idx):
+        return self.inputs[idx], self.targets[idx]
