@@ -2,6 +2,7 @@
 State Space Model
 TODO: add info
 """
+from typing import List
 
 from typing import List
 from Model import Model
