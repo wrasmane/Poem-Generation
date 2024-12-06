@@ -35,7 +35,7 @@ num_blocks = 8
 device = torch.device("cpu")
 batch_size = 4
 eval_iterations = 100
-max_iterations = 5000
+max_iterations = 20000
 lr = 0.0001
 max_new_tokens = 100
 
@@ -263,7 +263,7 @@ class TransformerLLM(nn.Module):
         div_term = torch.exp(torch.arange(0, self.size_token_embeddings, 2).float() * (-math.log(10000.0) / self.size_token_embeddings))
         lookup_table[:, 0::2] = torch.sin(position * div_term)
         lookup_table[:, 1::2] = torch.cos(position * div_term)
-        position_embedding = lookup_table[:T, :].to(device)
+        position_embedding = lookup_table[:T, :]
         x = self.lookup_table(idx) + position_embedding
         x = self.blocks(x)
         logs = self.output(x)

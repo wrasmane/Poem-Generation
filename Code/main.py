@@ -104,9 +104,15 @@ def main():
         phrase = continue_user_interaction()
         phrase = phrase.lower()
 
+        start = time.time()
         poem = model.generate(phrase)
+        end = time.time()
+
+        print("Generation Time: ", end - start, "seconds")
 
         print(poem)
+
+        save_poem(phrase, model, poem)
 
 
 if __name__ == '__main__':
