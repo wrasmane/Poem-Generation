@@ -24,6 +24,7 @@ import torch.nn as nn
 from torch.nn import functional
 from typing import List
 import tiktoken
+import matplotlib.pyplot as plt
 
 
 # Hyperparameters
@@ -34,8 +35,8 @@ num_heads = 4
 num_blocks = 8
 device = torch.device("cpu")
 batch_size = 4
-eval_iterations = 100
-max_iterations = 20000
+eval_iterations = 1
+max_iterations = 10
 lr = 0.0001
 max_new_tokens = 100
 
@@ -67,11 +68,13 @@ class Transformer(Model):
         self.model = self.model.to(device)
 
         optim = torch.optim.Adam(self.model.parameters(), lr)
-        losses = list()
+        train_losses = list()
+        validation_losses = list()
         for step in range(max_iterations):
             if step % eval_iterations == 0 or step == max_iterations:
                 loss = self._loss()
-                losses.append(loss)
+                train_losses.append(round(loss["train"].item(), 3))
+                validation_losses.append(round(loss["val"].item(), 3))
                 print("Step:", step, "Training Loss:", round(loss["train"].item(), 3), "Validation Loss:",
                       round(loss["val"].item(), 3))
 
@@ -82,6 +85,11 @@ class Transformer(Model):
             optim.step()
 
         torch.save(self.model.state_dict(), str(max_iterations) + "-model.pt")
+
+        plt.plot(range(max_iterations), train_losses, label="Training Loss")
+        plt.plot(range(max_iterations), validation_losses, label="Validation Loss")
+        plt.legend(loc="best")
+        plt.savefig("transformer-" + str(max_iterations) + "-loss.jpg")
 
 
     def _getbatch(self, split):

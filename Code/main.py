@@ -74,8 +74,9 @@ def save_poem(phrase, model, poem):
         with open(phrase.replace(" ", "-") + "-" + name + ".txt", "w") as file:
             file.write(poem)
     except UnicodeEncodeError:
-        file.write("Error saving poem.\nPoem contained invalid characters")
-        print("Error saving poem.")
+        with open(phrase.replace(" ", "-") + "-" + name + ".txt", "w") as file:
+            file.write("Error saving poem")
+        print("\n\n\n\nError saving poem.")
 
 
 def main():
