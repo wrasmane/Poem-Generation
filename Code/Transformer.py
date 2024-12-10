@@ -26,6 +26,8 @@ from typing import List
 import tiktoken
 import matplotlib.pyplot as plt
 
+# Load model
+load_path = "../Output/200000-model.pt"
 
 # Hyperparameters
 size_token_embeddings = 64
@@ -35,8 +37,8 @@ num_heads = 4
 num_blocks = 8
 device = torch.device("cpu")
 batch_size = 4
-eval_iterations = 1
-max_iterations = 10
+eval_iterations = 5
+max_iterations = 100
 lr = 0.0001
 max_new_tokens = 100
 
@@ -67,29 +69,38 @@ class Transformer(Model):
         self.model = TransformerLLM(self.max_token_value)
         self.model = self.model.to(device)
 
-        optim = torch.optim.Adam(self.model.parameters(), lr)
-        train_losses = list()
-        validation_losses = list()
-        for step in range(max_iterations):
-            if step % eval_iterations == 0 or step == max_iterations:
-                loss = self._loss()
-                train_losses.append(round(loss["train"].item(), 3))
-                validation_losses.append(round(loss["val"].item(), 3))
-                print("Step:", step, "Training Loss:", round(loss["train"].item(), 3), "Validation Loss:",
-                      round(loss["val"].item(), 3))
+        if load_path == "":
 
-            x_b, y_b = self._getbatch("train")
-            logs, loss = self.model(x_b, y_b)
-            optim.zero_grad(True)
-            loss.backward()
-            optim.step()
+            optim = torch.optim.Adam(self.model.parameters(), lr)
+            train_losses = list()
+            validation_losses = list()
+            ittr = list()
+            for step in range(max_iterations):
+                if step % eval_iterations == 0 or step == max_iterations:
+                    loss = self._loss()
+                    ittr.append(step)
+                    train_losses.append(round(loss["train"].item(), 3))
+                    validation_losses.append(round(loss["val"].item(), 3))
+                    print("Step:", step, "Training Loss:", round(loss["train"].item(), 3), "Validation Loss:",
+                          round(loss["val"].item(), 3))
 
-        torch.save(self.model.state_dict(), str(max_iterations) + "-model.pt")
+                x_b, y_b = self._getbatch("train")
+                logs, loss = self.model(x_b, y_b)
+                optim.zero_grad(True)
+                loss.backward()
+                optim.step()
 
-        plt.plot(range(max_iterations), train_losses, label="Training Loss")
-        plt.plot(range(max_iterations), validation_losses, label="Validation Loss")
-        plt.legend(loc="best")
-        plt.savefig("transformer-" + str(max_iterations) + "-loss.jpg")
+            torch.save(self.model.state_dict(), "../Output/" + str(max_iterations) + "-model.pt")
+
+            plt.plot(ittr, train_losses, label="Training Loss")
+            plt.plot(ittr, validation_losses, label="Validation Loss")
+            plt.xlabel("Iterations")
+            plt.ylabel("Loss")
+            plt.legend(loc="best")
+            plt.savefig("../Output/transformer-" + str(max_iterations) + "-loss.jpg")
+
+        else:
+            self.model.load_state_dict(torch.load(load_path))
 
 
     def _getbatch(self, split):

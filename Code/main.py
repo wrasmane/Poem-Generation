@@ -19,7 +19,6 @@ def load_data():
     # clean poems from leading and trailing whitespace and changes all to lowercase
     for i in range(len(poems)):
         poems[i] = poems[i].replace("\r", "")
-        # poems[i] = poems[i].replace("\n\n\n", "\n")
         poems[i] = poems[i].strip()
         poems[i] = poems[i].lower()
 
@@ -31,7 +30,7 @@ def user_interaction():
     print("\nWelcome to Poem Generator!\n\n")
 
     print("Please choose an generation model:")
-    print("Naive:\t\t'1'")
+    print("Naive:\t\t\t'1'")
     print("Transformer:\t'2'")
     print("State Space:\t'3'\n")
 
@@ -71,10 +70,10 @@ def save_poem(phrase, model, poem):
         name = "StateSpace"
 
     try:
-        with open(phrase.replace(" ", "-") + "-" + name + ".txt", "w") as file:
+        with open("../Output/" + phrase.replace(" ", "-") + "-" + name + ".txt", "w") as file:
             file.write(poem)
     except UnicodeEncodeError:
-        with open(phrase.replace(" ", "-") + "-" + name + ".txt", "w") as file:
+        with open("../Output/" + phrase.replace(" ", "-") + "-" + name + ".txt", "w") as file:
             file.write("Error saving poem")
         print("\n\n\n\nError saving poem.")
 
