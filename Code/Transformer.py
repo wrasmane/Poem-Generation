@@ -24,7 +24,10 @@ import torch.nn as nn
 from torch.nn import functional
 from typing import List
 import tiktoken
+import matplotlib.pyplot as plt
 
+# Load model
+load_path = "../Output/200000-model.pt"
 
 # Hyperparameters
 size_token_embeddings = 64
@@ -34,8 +37,8 @@ num_heads = 4
 num_blocks = 8
 device = torch.device("cpu")
 batch_size = 4
-eval_iterations = 100
-max_iterations = 5000
+eval_iterations = 5
+max_iterations = 100
 lr = 0.0001
 max_new_tokens = 100
 
@@ -66,22 +69,38 @@ class Transformer(Model):
         self.model = TransformerLLM(self.max_token_value)
         self.model = self.model.to(device)
 
-        optim = torch.optim.Adam(self.model.parameters(), lr)
-        losses = list()
-        for step in range(max_iterations):
-            if step % eval_iterations == 0 or step == max_iterations:
-                loss = self._loss()
-                losses.append(loss)
-                print("Step:", step, "Training Loss:", round(loss["train"].item(), 3), "Validation Loss:",
-                      round(loss["val"].item(), 3))
+        if load_path == "":
 
-            x_b, y_b = self._getbatch("train")
-            logs, loss = self.model(x_b, y_b)
-            optim.zero_grad(True)
-            loss.backward()
-            optim.step()
+            optim = torch.optim.Adam(self.model.parameters(), lr)
+            train_losses = list()
+            validation_losses = list()
+            ittr = list()
+            for step in range(max_iterations):
+                if step % eval_iterations == 0 or step == max_iterations:
+                    loss = self._loss()
+                    ittr.append(step)
+                    train_losses.append(round(loss["train"].item(), 3))
+                    validation_losses.append(round(loss["val"].item(), 3))
+                    print("Step:", step, "Training Loss:", round(loss["train"].item(), 3), "Validation Loss:",
+                          round(loss["val"].item(), 3))
 
-        torch.save(self.model.state_dict(), str(max_iterations) + "-model.pt")
+                x_b, y_b = self._getbatch("train")
+                logs, loss = self.model(x_b, y_b)
+                optim.zero_grad(True)
+                loss.backward()
+                optim.step()
+
+            torch.save(self.model.state_dict(), "../Output/" + str(max_iterations) + "-model.pt")
+
+            plt.plot(ittr, train_losses, label="Training Loss")
+            plt.plot(ittr, validation_losses, label="Validation Loss")
+            plt.xlabel("Iterations")
+            plt.ylabel("Loss")
+            plt.legend(loc="best")
+            plt.savefig("../Output/transformer-" + str(max_iterations) + "-loss.jpg")
+
+        else:
+            self.model.load_state_dict(torch.load(load_path))
 
 
     def _getbatch(self, split):
@@ -263,7 +282,7 @@ class TransformerLLM(nn.Module):
         div_term = torch.exp(torch.arange(0, self.size_token_embeddings, 2).float() * (-math.log(10000.0) / self.size_token_embeddings))
         lookup_table[:, 0::2] = torch.sin(position * div_term)
         lookup_table[:, 1::2] = torch.cos(position * div_term)
-        position_embedding = lookup_table[:T, :].to(device)
+        position_embedding = lookup_table[:T, :]
         x = self.lookup_table(idx) + position_embedding
         x = self.blocks(x)
         logs = self.output(x)
