@@ -90,31 +90,38 @@ class StateSpace(Model):
         plt.savefig("../Output/ssm-" + str(epoch) + "-loss.jpg")
 
     def generate(self, phrase: str) -> str:
+        # Convert initial phrase to tokens
         seed_tokens = self.tokenizer.encode(phrase)
-        x_t = torch.zeros(1, STATE_DIM, device=device)  # Add batch dimension
-        generated_text = phrase
-        current_tokens = seed_tokens
+        
+        # Initialize state with zeros
+        x_t = torch.zeros(STATE_DIM, device=device)
+        generated_tokens = seed_tokens.copy()
 
         length = 200
-        temperature = 0.8
+        temperature = 0.7
 
         for _ in range(length):
-            # Process last token
-            u_t = self.model.embedding(torch.tensor(current_tokens[-1], device=device)).unsqueeze(0)
-            x_t, y_t = self.model(x_t, u_t)
+            # Process existing tokens to update state
+            for token in seed_tokens:
+                u_t = self.model.embedding(torch.tensor(token, device=device))
+                x_t, y_t = self.model(x_t, u_t)
             
             # Apply temperature to logits for more diverse sampling
             logits = y_t @ self.model.embedding.weight.T
-            logits = logits / temperature
-            probabilities = F.softmax(logits, dim=-1)
+            scaled_logits = logits / temperature
             
-            # Sample from probability distribution
-            next_token = torch.multinomial(probabilities, num_samples=1).item()
+            # Sample from probability distribution instead of always taking argmax
+            probabilities = F.softmax(scaled_logits, dim=0)
+            next_token = torch.multinomial(probabilities, 1).item()
             
-            generated_text += self.tokenizer.decode([next_token])
-            current_tokens.append(next_token)
+            # Append to generated tokens
+            generated_tokens.append(next_token)
+            
+            # Update seed for next iteration
+            seed_tokens = [next_token]
 
-        return generated_text
+        # Decode back to text
+        return self.tokenizer.decode(generated_tokens)
 
 
 class TextStateSpaceModel(nn.Module):
