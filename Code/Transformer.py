@@ -1,13 +1,16 @@
 """
 Transformer Model
 
-Code was adopted and modeled after the below repository
+Throughout this implementation, the linked repository has been
+references as a foundation and cross-reference when developing
+this model
 https://github.com/Suruj0001/Transfomers/tree/main
 
 This repository worked through the paper "All you need is attention"
 and provided a step-by-step walkthrough of implementing a Transformer
 model from scratch. In real applications, libraries such as PyPi or
-Hugging face. Along with this, there are pretrained transformers from
+Hugging face should be used as they preform many optimizations in
+calculations. Along with this, there are pretrained transformers from
 Open AI that would all preform better than this one
 
 This transformer model uses many advanced neural network topics that
@@ -28,6 +31,7 @@ import matplotlib.pyplot as plt
 
 # Load model
 load_path = "../Output/200000-model.pt"
+# load_path = ""
 
 # Hyperparameters
 size_token_embeddings = 64
@@ -38,7 +42,7 @@ num_blocks = 8
 device = torch.device("cpu")
 batch_size = 4
 eval_iterations = 5
-max_iterations = 100
+max_iterations = 25
 lr = 0.0001
 max_new_tokens = 100
 
@@ -157,12 +161,10 @@ class FeedForward(nn.Module):
     def __init__(self):
         super().__init__()
         self.size_token_embeddings = size_token_embeddings
-        self.dropout_rate = dropout_rate
         self.feed_forward_network = nn.Sequential(
             nn.Linear(in_features=self.size_token_embeddings, out_features=self.size_token_embeddings * 4),
             nn.ReLU(),
             nn.Linear(in_features=self.size_token_embeddings * 4, out_features=self.size_token_embeddings),
-            nn.Dropout(self.dropout_rate)
         )
 
     def forward(self, x):
@@ -180,30 +182,29 @@ class Attention(nn.Module):
         self.head_size = head_size
         self.size_token_embeddings = size_token_embeddings
         self.context_length = context_length
-        self.dropout_rate = dropout_rate
 
         self.key = nn.Linear(in_features=self.size_token_embeddings, out_features=self.head_size, bias=False)
         self.query = nn.Linear(in_features=self.size_token_embeddings, out_features=self.head_size, bias=False)
         self.value = nn.Linear(in_features=self.size_token_embeddings, out_features=self.head_size, bias=False)
+
+        #used for masking
         self.register_buffer("tril", torch.tril(torch.ones((self.context_length, self.context_length))))
-        self.dropout = nn.Dropout(self.dropout_rate)
 
     def forward(self, x):
         batch_size, time_steps, dimensions = x.shape
 
-        q = self.query(x)
         k = self.key(x)
+        q = self.query(x)
         v = self.value(x)
 
-        weights = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
+        weights = (q @ k.transpose(-2, -1)) # matmul
+        weights = weights * (1.0 / math.sqrt(k.size(-1))) # scale
+        weights = weights.masked_fill(
+            self.tril[:time_steps, :time_steps] == 0, -float("inf")) # mask
+        weights = functional.softmax(weights, dim=-1) # softmax
+        weights = weights @ v # matmul
 
-        weights = weights.masked_fill(self.tril[:time_steps, :time_steps] == 0, -float("inf"))
-
-        weights = functional.softmax(weights, dim=-1)
-
-        weights = self.dropout(weights)
-
-        return weights @ v
+        return weights
 
 """
 Multi-Headed Attention Module
@@ -217,16 +218,13 @@ class MultiHeadAttention(nn.Module):
         self.head_size = head_size
         self.size_token_embeddings = size_token_embeddings
         self.context_length = context_length
-        self.dropout_rate = dropout_rate
 
         self.heads = nn.ModuleList([Attention(head_size) for _ in range(self.num_heads)])
         self.protection = nn.Linear(in_features=self.size_token_embeddings, out_features=self.size_token_embeddings)
-        self.dropout = nn.Dropout(self.dropout_rate)
 
     def forward(self, x):
         out = torch.cat([attention(x) for attention in self.heads], dim=-1)
         out = self.protection(out)
-        out = self.dropout(out)
         return out
 
 """
@@ -240,7 +238,6 @@ class TransformerBlock(nn.Module):
         self.num_heads = num_heads
         self.size_token_embeddings = size_token_embeddings
         self.context_length = context_length
-        self.dropout_rate = dropout_rate
         self.head_size = size_token_embeddings // num_heads
 
         self.multihead_attention = MultiHeadAttention(self.head_size)
@@ -265,43 +262,51 @@ class TransformerLLM(nn.Module):
         self.context_length = context_length
         self.num_heads = num_heads
         self.num_blocks = num_blocks
-        self.dropout_rate = dropout_rate
         self.max_token_value = max_token_value
-        self.lookup_table = nn.Embedding(self.max_token_value + 1, self.size_token_embeddings)
+
+        self.lookup_table = nn.Embedding(
+            self.max_token_value + 1,
+            self.size_token_embeddings
+        )
 
         self.blocks = nn.Sequential(*(
             [TransformerBlock(num_heads) for _ in range(self.num_blocks)] +
             [nn.LayerNorm(self.size_token_embeddings)]
         ))
+
         self.output = nn.Linear(self.size_token_embeddings, self.max_token_value)
 
-    def forward(self, idx, targets=None):
-        B, T = idx.shape
-        lookup_table = torch.zeros(self.context_length, self.size_token_embeddings)
+    def forward(self, x, targets=None):
+        B, T = x.shape
+        position_embedding = torch.zeros(self.context_length, self.size_token_embeddings)
         position = torch.arange(0, self.context_length, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, self.size_token_embeddings, 2).float() * (-math.log(10000.0) / self.size_token_embeddings))
-        lookup_table[:, 0::2] = torch.sin(position * div_term)
-        lookup_table[:, 1::2] = torch.cos(position * div_term)
-        position_embedding = lookup_table[:T, :]
-        x = self.lookup_table(idx) + position_embedding
+
+        div_term = torch.exp(torch.arange(0, self.size_token_embeddings, 2).float() *
+                             (-math.log(10000.0) / self.size_token_embeddings))
+
+        position_embedding[:, 0::2] = torch.sin(position * div_term)
+        position_embedding[:, 1::2] = torch.cos(position * div_term)
+        position_embedding = position_embedding[:T, :]
+
+        x = self.lookup_table(x) + position_embedding
         x = self.blocks(x)
         logs = self.output(x)
 
         if targets is not None:
             B, T, C = logs.shape
-            logs_reshaped = logs.view(B * T, C)
-            targets_reshaped = targets.view(B * T)
-            loss = functional.cross_entropy(logs_reshaped, targets_reshaped)
+            logs = logs.view(B * T, C)
+            targets = targets.view(B * T)
+            loss = functional.cross_entropy(logs, targets)
         else:
             loss = None
 
         return logs, loss
 
-    def gen(self, idx, max_new_tokens):
+    def gen(self, x, max_new_tokens):
         for _ in range(max_new_tokens):
-            logs, loss = self(idx[:, -self.context_length:])
-            last_log = logs[:, -1, :]
-            probs = functional.softmax(last_log, dim=-1)
-            next_idx = torch.multinomial(probs, num_samples=1)
-            idx = torch.cat((idx, next_idx), dim=1)
-        return idx
+            logs, loss = self(x[:, -self.context_length:])
+            previous_log = logs[:, -1, :]
+            probs = functional.softmax(previous_log, dim=-1)
+            next_x = torch.multinomial(probs, num_samples=1)
+            x = torch.cat((x, next_x), dim=1)
+        return x
