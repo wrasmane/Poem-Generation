@@ -15,17 +15,14 @@ import tiktoken
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load model
-load_path = ""
+load_path = "../Output/2-ss-model.pt"
+#load_path = ""
 
 STATE_DIM = 128
 EMBED_DIM = 64
 
 class StateSpace(Model):
     def fit(self, data: List[str]):
-        if load_path != "":
-            self.model.load_state_dict(torch.load(load_path))
-            return
-
         print(f"Using inference device for SSM:  {device}")
         # poem data tokenization
         self.poems = "\n\n".join(data)
@@ -42,6 +39,10 @@ class StateSpace(Model):
 
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+
+        if load_path != "":
+            self.model.load_state_dict(torch.load(load_path))
+            return
 
         epochs = 2
         for epoch in range(epochs):
@@ -85,8 +86,11 @@ class StateSpace(Model):
             for token in seed_tokens:
                 u_t = self.model.embedding(torch.tensor(token, device=device))
                 x_t, y_t = self.model(x_t, u_t)
+
             logits = y_t @ self.model.embedding.weight.T
-            next_token = torch.argmax(F.softmax(logits, dim=0)).item()
+            probabilities = F.softmax(logits, dim=0)
+            next_token = torch.multinomial(probabilities, 1).item()
+            
             generated_text += self.tokenizer.decode([next_token])
             seed_tokens = [next_token]  # Update seed for the next step
 
@@ -100,6 +104,11 @@ class TextStateSpaceModel(nn.Module):
         self.A = nn.Parameter(torch.randn(state_dim, state_dim))
         self.B = nn.Parameter(torch.randn(state_dim, embed_dim))
         self.C = nn.Parameter(torch.randn(embed_dim, state_dim))
+
+        self.A = torch.nn.init.xavier_uniform_(self.A)
+        self.B = torch.nn.init.xavier_uniform_(self.B)
+        self.C = torch.nn.init.xavier_uniform_(self.C)
+
         self.bias_state = nn.Parameter(torch.zeros(state_dim))
         self.bias_obs = nn.Parameter(torch.zeros(embed_dim))
     
@@ -116,7 +125,7 @@ class TextStateSpaceModel(nn.Module):
 
         return x_next, y_t
 
-PERCENT = 0.50 # Use only 50% of our data
+PERCENT = 0.3 # Use only 30% of our data
 
 class StringDataset(Dataset):
     def __init__(self, text, seq_len, tokenizer):
