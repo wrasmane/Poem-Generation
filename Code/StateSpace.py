@@ -23,7 +23,15 @@ EMBED_DIM = 64
 
 class StateSpace(Model):
     def fit(self, data: List[str]):
-        print(f"Using inference device for SSM:  {device}")
+        device_name = ""
+
+        if torch.cuda.is_available():
+            device_name = torch.cuda.get_device_name(0)
+        else:
+            device_name = device
+
+        print(f"Using inference device for SSM:  {device_name}")
+
         # poem data tokenization
         self.poems = "\n\n".join(data)
         self.tokenizer = tiktoken.get_encoding("cl100k_base")
