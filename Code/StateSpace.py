@@ -5,8 +5,6 @@ TODO: add info
 from typing import List
 
 from typing import List
-
-from matplotlib import pyplot as plt
 from Model import Model
 import torch
 import torch.nn as nn
@@ -19,10 +17,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Load model
 load_path = ""
 
-STATE_DIM = 64
-EMBED_DIM = 32
-
-epochs = 2
+STATE_DIM = 128
+EMBED_DIM = 64
 
 class StateSpace(Model):
     def fit(self, data: List[str]):
@@ -47,9 +43,7 @@ class StateSpace(Model):
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
 
-        train_losses = list()
-        ittr = list()
-
+        epochs = 2
         for epoch in range(epochs):
             print(f"epoch: {epoch}")
             total_loss = 0
@@ -78,50 +72,25 @@ class StateSpace(Model):
                 if batch_idx % 1000 == 0:  # Log every 10 batches
                     print(f"Epoch {epoch + 1}, Batch {batch_idx + 1}/{len(dataloader)}, Loss: {loss.item():.4f}")
 
-                ittr.append(epoch)
-                train_losses.append(round(loss.item(), 3))
-
         torch.save(self.model.state_dict(), "../Output/" + str(epochs) + "-ss-model.pt")
 
-        plt.plot(ittr, train_losses, label="Training Loss")
-        plt.xlabel("Iterations")
-        plt.ylabel("Loss")
-        plt.legend(loc="best")
-        plt.savefig("../Output/ssm-" + str(epoch) + "-loss.jpg")
-
     def generate(self, phrase: str) -> str:
-        # Convert initial phrase to tokens
         seed_tokens = self.tokenizer.encode(phrase)
-        
-        # Initialize state with zeros
         x_t = torch.zeros(STATE_DIM, device=device)
-        generated_tokens = seed_tokens.copy()
+        generated_text = phrase
 
-        length = 200
-        temperature = 0.7
+        LENGTH = 200 # Generate 200 tokens
 
-        for _ in range(length):
-            # Process existing tokens to update state
+        for _ in range(LENGTH):
             for token in seed_tokens:
                 u_t = self.model.embedding(torch.tensor(token, device=device))
                 x_t, y_t = self.model(x_t, u_t)
-            
-            # Apply temperature to logits for more diverse sampling
             logits = y_t @ self.model.embedding.weight.T
-            scaled_logits = logits / temperature
-            
-            # Sample from probability distribution instead of always taking argmax
-            probabilities = F.softmax(scaled_logits, dim=0)
-            next_token = torch.multinomial(probabilities, 1).item()
-            
-            # Append to generated tokens
-            generated_tokens.append(next_token)
-            
-            # Update seed for next iteration
-            seed_tokens = [next_token]
+            next_token = torch.argmax(F.softmax(logits, dim=0)).item()
+            generated_text += self.tokenizer.decode([next_token])
+            seed_tokens = [next_token]  # Update seed for the next step
 
-        # Decode back to text
-        return self.tokenizer.decode(generated_tokens)
+        return generated_text
 
 
 class TextStateSpaceModel(nn.Module):
@@ -147,7 +116,7 @@ class TextStateSpaceModel(nn.Module):
 
         return x_next, y_t
 
-PERCENT = 0.25 # Use only 25% of our data
+PERCENT = 0.50 # Use only 50% of our data
 
 class StringDataset(Dataset):
     def __init__(self, text, seq_len, tokenizer):
