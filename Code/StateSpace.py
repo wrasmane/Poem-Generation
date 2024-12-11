@@ -14,12 +14,18 @@ import tiktoken
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# Load model
+load_path = ""
 
-STATE_DIM = 32
-EMBED_DIM = 16
+STATE_DIM = 64
+EMBED_DIM = 32
 
 class StateSpace(Model):
     def fit(self, data: List[str]):
+        if load_path != "":
+            self.model.load_state_dict(torch.load(load_path))
+            return
+
         print(f"Using inference device for SSM:  {device}")
         # poem data tokenization
         self.poems = "\n\n".join(data)
@@ -66,6 +72,8 @@ class StateSpace(Model):
                 if batch_idx % 1000 == 0:  # Log every 10 batches
                     print(f"Epoch {epoch + 1}, Batch {batch_idx + 1}/{len(dataloader)}, Loss: {loss.item():.4f}")
 
+        torch.save(self.model.state_dict(), "../Output/" + str(epochs) + "-ss-model.pt")
+
     def generate(self, phrase: str) -> str:
         seed_tokens = self.tokenizer.encode(phrase)
         x_t = torch.zeros(STATE_DIM, device=device)
@@ -108,7 +116,7 @@ class TextStateSpaceModel(nn.Module):
 
         return x_next, y_t
 
-PERCENT = 0.25 # Use only 25% of our data
+PERCENT = 0.50 # Use only 50% of our data
 
 class StringDataset(Dataset):
     def __init__(self, text, seq_len, tokenizer):
