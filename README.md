@@ -68,17 +68,20 @@ The main file saves the generated poems to the Output directory. The output file
 named {input phrase}-{model name}.txt. If there is an error saving the poem, the content
 of the file will contain "Error saving poem"
 ### State Space
-TODO
+TODO Installs\
+\
+TODO saved files
 ### Transformer
 There are few different libraries that will need to be installed in order to 
 run the transformer model. Pytorch can be installed by running the command
 `pip install torch`. Tiktoken can be installed by running the command `pip install tiktoken`.
 Lastly, matplotlib can be installed by running the command `pip install matplotlib`\
 \
-This file produces a few outputs depending on one main attribute. First if the boolean
-`used_trained`(located in Transformer.py) is true, there will be no outputs from this file.
-If `used_trained` is false, then the file will create a new transformer model with the 
-given hyperparameters. `eval_iterations` and `max_iterations` are the main tunable parameters,
-where the default values for training time sake is 5 and 25 respectively. With this setup, two 
-new files will be produced as a result. `25-model.pt` will be the saved state of the transformer
-model and `transformer-25-loss.jpg` will contain the saved loss plot from the validation cycles.
+This file produces a few outputs that save to the Output directory depending on one main 
+attribute. First if the boolean `used_trained`(located in Transformer.py) is true, there 
+will be no outputs from this file. If `used_trained` is false, then the file will create 
+a new transformer model with the given hyperparameters. `eval_iterations` and `max_iterations` 
+are the main tunable parameters, where the default values for training time sake is 5 and 
+25 respectively. With this setup, two new files will be produced as a result. `25-model.pt` 
+will be the saved state of the transformer model and `transformer-25-loss.jpg` will contain 
+the saved loss plot from the validation cycles.
