@@ -13,11 +13,10 @@ Hugging face should be used as they preform many optimizations in
 calculations. Along with this, there are pretrained transformers from
 Open AI that would all preform better than this one
 
-This transformer model uses many advanced neural network topics that
-are above the level for this class, so the main components were
-discussed in class, such as the attention module and the positional
-encoding/decoding.
-
+This transformer model uses many different neural network topics as well
+as classes defined in pyTorch. With this project, my main goal was to
+discuss the transformer model, and not the fine details of specific aspects
+such as how pytorch defines their embedding layer, etc.
 """
 import math
 
@@ -30,8 +29,10 @@ import tiktoken
 import matplotlib.pyplot as plt
 
 # Load model
-load_path = "../Output/200000-model.pt"
-# load_path = ""
+use_trained = True
+# Iterations
+eval_iterations = 5 # max_iterations % eval_iterations == 0 must be true
+max_iterations = 25
 
 # Hyperparameters
 size_token_embeddings = 64
@@ -41,14 +42,11 @@ num_heads = 4
 num_blocks = 8
 device = torch.device("cpu")
 batch_size = 4
-eval_iterations = 5
-max_iterations = 25
 lr = 0.0001
 max_new_tokens = 100
 
 """
 Main transformer class
-
 """
 class Transformer(Model):
     def fit(self, data: List[str]):
@@ -73,7 +71,7 @@ class Transformer(Model):
         self.model = TransformerLLM(self.max_token_value)
         self.model = self.model.to(device)
 
-        if load_path == "":
+        if use_trained:
 
             optim = torch.optim.Adam(self.model.parameters(), lr)
             train_losses = list()
@@ -104,7 +102,7 @@ class Transformer(Model):
             plt.savefig("../Output/transformer-" + str(max_iterations) + "-loss.jpg")
 
         else:
-            self.model.load_state_dict(torch.load(load_path))
+            self.model.load_state_dict(torch.load("../Output/200000-model.pt"))
 
 
     def _getbatch(self, split):
@@ -159,6 +157,9 @@ adds layers for nn understanding of the data
 """
 class FeedForward(nn.Module):
     def __init__(self):
+        """
+        initializes this pytorch neural network module
+        """
         super().__init__()
         self.size_token_embeddings = size_token_embeddings
         self.feed_forward_network = nn.Sequential(
@@ -168,6 +169,11 @@ class FeedForward(nn.Module):
         )
 
     def forward(self, x):
+        """
+        define how the pytorch module performs the forward pass of the network
+        :param x: the abstract input data
+        :return: the abstract output data
+        """
         return self.feed_forward_network(x)
 
 
@@ -178,6 +184,10 @@ gets the context a word has with other words in a phrase
 """
 class Attention(nn.Module):
     def __init__(self, head_size):
+        """
+        initializes this pytorch neural network module
+        :param head_size: the size of each attention head
+        """
         super().__init__()
         self.head_size = head_size
         self.size_token_embeddings = size_token_embeddings
@@ -191,6 +201,11 @@ class Attention(nn.Module):
         self.register_buffer("tril", torch.tril(torch.ones((self.context_length, self.context_length))))
 
     def forward(self, x):
+        """
+        define how the pytorch module performs the forward pass of the network
+        :param x: the abstract input data
+        :return: the abstract output data
+        """
         batch_size, time_steps, dimensions = x.shape
 
         k = self.key(x)
@@ -213,6 +228,10 @@ multiple attention modules used to get better insight on the phrases and context
 """
 class MultiHeadAttention(nn.Module):
     def __init__(self, head_size):
+        """
+        initializes this pytorch neural network module
+        :param head_size: the size of each attention head
+        """
         super().__init__()
         self.num_heads = num_heads
         self.head_size = head_size
@@ -223,6 +242,11 @@ class MultiHeadAttention(nn.Module):
         self.protection = nn.Linear(in_features=self.size_token_embeddings, out_features=self.size_token_embeddings)
 
     def forward(self, x):
+        """
+        define how the pytorch module performs the forward pass of the network
+        :param x: the abstract input data
+        :return: the abstract output data
+        """
         out = torch.cat([attention(x) for attention in self.heads], dim=-1)
         out = self.protection(out)
         return out
@@ -234,6 +258,11 @@ combines the attention modules and feedforward network
 """
 class TransformerBlock(nn.Module):
     def __init__(self, num_heads):
+        """
+        initializes this pytorch neural network module
+        :param num_heads: the number of heads to include for
+        the multi-head attention
+        """
         super().__init__()
         self.num_heads = num_heads
         self.size_token_embeddings = size_token_embeddings
@@ -246,6 +275,11 @@ class TransformerBlock(nn.Module):
         self.norm2 = nn.LayerNorm(self.size_token_embeddings)
 
     def forward(self, x):
+        """
+        defines how the pytorch module performs the forward pass of the network
+        :param x: the input data of the positional encoded word embeddings
+        :return: the abstract output data
+        """
         x = x + self.multihead_attention(self.norm1(x))
         x = x + self.ff(self.norm2(x))
         return x
@@ -257,6 +291,10 @@ combines the transformer blocks with positional encoding/decoding of token embed
 """
 class TransformerLLM(nn.Module):
     def __init__(self, max_token_value):
+        """
+        initializes this pytorch neural network module
+        :param max_token_value: the maximum value of the tokenized text
+        """
         super().__init__()
         self.size_token_embeddings = size_token_embeddings
         self.context_length = context_length
@@ -277,6 +315,12 @@ class TransformerLLM(nn.Module):
         self.output = nn.Linear(self.size_token_embeddings, self.max_token_value)
 
     def forward(self, x, targets=None):
+        """
+        defines how the pytorch module performs the forward pass of the network
+        :param x: the input data of tokenized text
+        :param targets: the true output (used for calculating loss)
+        :return: the logit output and the loss (if targets is defined)
+        """
         B, T = x.shape
         position_embedding = torch.zeros(self.context_length, self.size_token_embeddings)
         position = torch.arange(0, self.context_length, dtype=torch.float).unsqueeze(1)
@@ -303,6 +347,14 @@ class TransformerLLM(nn.Module):
         return logs, loss
 
     def gen(self, x, max_new_tokens):
+        """
+        generates a poem from the trained model
+        :param x: the tokenized input phrase
+        :param max_new_tokens: the maximum number of new tokens that
+        we can generate
+        :return: the poem generated from the trained model in a tokenized
+        text
+        """
         for _ in range(max_new_tokens):
             logs, loss = self(x[:, -self.context_length:])
             previous_log = logs[:, -1, :]
