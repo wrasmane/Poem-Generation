@@ -5,6 +5,7 @@ this class contains the main interface for creating a
 model. In includes a fit and a generate function that
 are used when calling the model in the main file
 """
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 from typing import List
 
