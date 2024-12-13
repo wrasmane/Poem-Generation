@@ -15,11 +15,12 @@ import tiktoken
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load model
-load_path = "../Output/2-ss-model.pt"
+#load_path = "../Output/2-ss-model.pt"
+load_path = "../Output/3-ss-model.pt"
 #load_path = ""
 
-STATE_DIM = 128
-EMBED_DIM = 64
+STATE_DIM = 256
+EMBED_DIM = 128
 
 class StateSpace(Model):
     def fit(self, data: List[str]):
@@ -52,7 +53,7 @@ class StateSpace(Model):
             self.model.load_state_dict(torch.load(load_path))
             return
 
-        epochs = 2
+        epochs = 3
         for epoch in range(epochs):
             print(f"epoch: {epoch}")
             total_loss = 0
@@ -133,7 +134,7 @@ class TextStateSpaceModel(nn.Module):
 
         return x_next, y_t
 
-PERCENT = 0.3 # Use only 30% of our data
+PERCENT = 0.5 # Use only 50% of our data
 
 class StringDataset(Dataset):
     def __init__(self, text, seq_len, tokenizer):
