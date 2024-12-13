@@ -42,22 +42,22 @@ This folder contains the data our models need to use
 This file contains the dataset from [Kaggle](https://www.kaggle.com/datasets/tgdivy/poetry-foundation-poems)
 ### Output
 This folder contains any output generated from the models
+#### 2-ss-model.pt
+Pretrained state space model, recommended to use this instead of training your own.
+It will automatically use this model so long as the file is present.
 #### 200000-model.pt
 This file contains a saved state of the transformer model
 #### there-once-was-a-dog-Naive.txt
 This file contains the gnerated output form the naive model with the input
 phrase of "there once was a dog"
+#### there-once-was-a-dog-StateSpace.txt
+Output from SSM given "There once was a dog" as its input.
 #### there-once-was-a-dog-Transformer.txt
 This file contains the generated output from the transformer model with the
 input phrase of "there once was a dog"
 #### transformer-200000-loss.jpg
 This file contains the saved plot from the training of the transformer model
 with 200000 iterations
-#### 2-ss-model.pt
-Pretrained state space model, recommended to use this instead of training your own.
-It will automatically use this model so long as the file is present.
-### there-once-was-a-dog-StateSpace.txt
-Output from SSM given "There once was a dog" as its input.
 ### README.md
 This file contains the readme for this project
 
@@ -71,16 +71,24 @@ The main file saves the generated poems to the Output directory. The output file
 named {input phrase}-{model name}.txt. If there is an error saving the poem, the content
 of the file will contain "Error saving poem"
 ### State Space
-TODO Installs\
+There are few different libraries that will need to be installed in order to 
+run the transformer model. Pytorch can be installed by running the command
+`pip install torch`. Tiktoken can be installed by running the command `pip install tiktoken`.\
 \
-TODO saved files
+This class produces one output of saving the model if you are not using the already
+trained model. This is toggled by th `load_path` parameter located in StateSpace.py.
+If this parameter is an empty string `""`, then the model will be trained again with the
+given hyperparameters. However, running the state space model with only 1 epoch will take
+a significant amount of time with a CPU. Once this model training is completed, a file
+names `#-ss-model.pt` will be saved in the Output directory with # being the number of
+epochs trained.
 ### Transformer
 There are few different libraries that will need to be installed in order to 
 run the transformer model. Pytorch can be installed by running the command
 `pip install torch`. Tiktoken can be installed by running the command `pip install tiktoken`.
 Lastly, matplotlib can be installed by running the command `pip install matplotlib`\
 \
-This file produces a few outputs that save to the Output directory depending on one main 
+This class produces a few outputs that save to the Output directory depending on one main 
 attribute. First if the boolean `used_trained`(located in Transformer.py) is true, there 
 will be no outputs from this file. If `used_trained` is false, then the file will create 
 a new transformer model with the given hyperparameters. `eval_iterations` and `max_iterations` 

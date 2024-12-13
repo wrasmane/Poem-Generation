@@ -4,7 +4,6 @@ Uses the format of
 x = Ax(t) + Bu(t)
 y = Cx(t) + Du(t)
 """
-from typing import List
 
 from typing import List
 from Model import Model
@@ -18,10 +17,11 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load model
 load_path = "../Output/2-ss-model.pt"
-#load_path = ""
+# load_path = ""
 
 STATE_DIM = 128
 EMBED_DIM = 64
+epochs = 1
 
 class StateSpace(Model):
     def fit(self, data: List[str]):
@@ -54,7 +54,6 @@ class StateSpace(Model):
             self.model.load_state_dict(torch.load(load_path))
             return
 
-        epochs = 2
         for epoch in range(epochs):
             print(f"epoch: {epoch}")
             total_loss = 0
