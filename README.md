@@ -53,8 +53,11 @@ input phrase of "there once was a dog"
 #### transformer-200000-loss.jpg
 This file contains the saved plot from the training of the transformer model
 with 200000 iterations
-#### TODO WITH STATE SPACE MODEL
-TODO WITH STATE SPACE MODEL
+#### 2-ss-model.pt
+Pretrained state space model, recommended to use this instead of training your own.
+It will automatically use this model so long as the file is present.
+### there-once-was-a-dog-StateSpace.txt
+Output from SSM given "There once was a dog" as its input.
 ### README.md
 This file contains the readme for this project
 

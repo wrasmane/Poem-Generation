@@ -1,6 +1,8 @@
 """
-State Space Model
-TODO: add info
+State Space based poem generation model. 
+Uses the format of 
+x = Ax(t) + Bu(t)
+y = Cx(t) + Du(t)
 """
 from typing import List
 
