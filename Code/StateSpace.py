@@ -3,6 +3,9 @@ State Space based poem generation model.
 Uses the format of 
 x = Ax(t) + Bu(t)
 y = Cx(t) + Du(t)
+
+The model will also automatically use a CUDA device via pytorch if one is available.
+If there are no available CUDA devices it will default to CPU training and inference.
 """
 
 from typing import List
@@ -23,7 +26,18 @@ STATE_DIM = 128
 EMBED_DIM = 64
 epochs = 1
 
+"""
+High level State Space Model implementation.
+This acts as a shim between the main functionality of our testing program and
+the model itself.
+"""
 class StateSpace(Model):
+    """
+    Trains the model based on the data given.
+    This make take quite a while depending on your hardware.
+    If there is a model provided via the "load_path" variable
+    it will use that instead.
+    """
     def fit(self, data: List[str]):
         device_name = ""
 
@@ -84,6 +98,9 @@ class StateSpace(Model):
 
         torch.save(self.model.state_dict(), "../Output/" + str(epochs) + "-ss-model.pt")
 
+    """
+    Generates a poem based on the given phrase input.
+    """
     def generate(self, phrase: str) -> str:
         seed_tokens = self.tokenizer.encode(phrase)
         x_t = torch.zeros(STATE_DIM, device=device)
@@ -105,7 +122,10 @@ class StateSpace(Model):
 
         return generated_text
 
-
+"""
+Text abstraction over state space model.
+Implement's pytorch model object for use with torch.
+"""
 class TextStateSpaceModel(nn.Module):
     def __init__(self, vocab_size, embed_dim, state_dim):
         super(TextStateSpaceModel, self).__init__()
@@ -136,6 +156,10 @@ class TextStateSpaceModel(nn.Module):
 
 PERCENT = 0.3 # Use only 30% of our data
 
+"""
+Dataset object containing all of our poem data.
+This allows for much easier training as the chunking during training is handled by torch.
+"""
 class StringDataset(Dataset):
     def __init__(self, text, seq_len, tokenizer):
         self.seq_len = seq_len
@@ -144,6 +168,9 @@ class StringDataset(Dataset):
         self.text = self.text[:reduced_length]
         self.inputs, self.targets = self.create_sequences()
     
+    """
+    Creates input and output data points for training.
+    """
     def create_sequences(self):
         inputs, targets = [], []
         for i in range(len(self.text) - self.seq_len):
